@@ -1,0 +1,48 @@
+# Phase 1 experiment: DenseNet121 + Grad-CAM on MURA.
+# EDIT `data.mura_root` to point to your downloaded MURA-v1.1 directory.
+
+experiment:
+  name: densenet121_gradcam_phase1
+  seed: 42
+
+data:
+  # >>> SET THIS: absolute path to the MURA-v1.1 folder (contains train_image_paths.csv etc.)
+  mura_root: /Users/aparbhandari/Downloads/explanable_ai_2/XAI_project/MURA-v1.1
+  image_size: 224
+  regions: all            # 'all' or a list, e.g. [XR_WRIST, XR_SHOULDER]
+  val_from: official      # 'official' = use MURA valid split; folds are made on train
+  n_folds: 5
+  fold: 0                 # which CV fold to hold out for validation (0..n_folds-1)
+  num_workers: 2
+
+model:
+  backbone: densenet121   # phase 1
+  pretrained: true
+  num_classes: 2
+
+train:
+  epochs: 30
+  batch_size: 32
+  lr: 0.0001
+  weight_decay: 0.0001
+  optimizer: adamw
+  scheduler: reduce_on_plateau
+  early_stopping_patience: 5
+  class_weighted_loss: true
+  amp: true               # mixed precision
+  quick_debug: false      # true = 1 epoch, tiny subset (for pipeline testing)
+
+explain:
+  method: gradcam
+  target_layer: auto      # 'auto' hooks the backbone's final feature block
+  eval_subset: 200        # number of validation images used for explanation evaluation
+
+faithfulness:
+  steps: 100              # deletion/insertion steps
+  baseline: blur          # 'blur' or 'zero'
+  keep_threshold: 0.5     # for Average Drop / Increase-in-Confidence masking
+
+output:
+  checkpoints_dir: checkpoints
+  results_csv: results/results.csv
+  maps_cache: maps_cache

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.egg-info/
+.pytest_cache/
+
+# Anchored to project root: dataset & generated artifacts (never commit these).
+# Leading slash matters — it keeps src/xai_bench/data/ (our code) tracked.
+/data/
+/MURA-v1.1/
+/checkpoints/
+/results/
+/maps_cache/
+
+# Model weights / notebooks checkpoints
+*.pt
+*.pth
+*.ckpt
+.ipynb_checkpoints/
+.DS_Store

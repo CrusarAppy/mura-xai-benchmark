@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xai_bench"
+version = "0.1.0"
+description = "Reproducible XAI benchmark for musculoskeletal radiograph classification (MURA)"
+requires-python = ">=3.10"
+dependencies = [
+  "torch>=2.2", "torchvision>=0.17", "numpy>=1.26", "pandas>=2.1", "pillow>=10.0",
+  "pyyaml>=6.0", "scikit-learn>=1.4", "scipy>=1.11", "scikit-image>=0.22",
+  "matplotlib>=3.8", "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+xai = ["captum>=0.7", "shap>=0.44"]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+addopts = "-q"

@@ -1,0 +1,20 @@
+# Core deep learning
+torch>=2.2
+torchvision>=0.17
+# Data & config
+numpy>=1.26
+pandas>=2.1
+pillow>=10.0
+pyyaml>=6.0
+# Metrics / stats / imaging (used in Phase 1 and later)
+scikit-learn>=1.4
+scipy>=1.11
+scikit-image>=0.22
+# Explainability (later phases: Integrated Gradients, SHAP)
+captum>=0.7
+shap>=0.44
+# Reporting & viz
+matplotlib>=3.8
+tqdm>=4.66
+# Testing
+pytest>=8.0
