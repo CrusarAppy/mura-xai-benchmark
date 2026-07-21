@@ -33,8 +33,9 @@ train:
   quick_debug: true      # true = 1 epoch, tiny subset (for pipeline testing)
 
 explain:
+  # one of: gradcam | gradcampp | scorecam | layercam | integrated_gradients | shap
   method: gradcam
-  target_layer: auto      # 'auto' hooks the backbone's final feature block
+  target_layer: auto      # 'auto' hooks the backbone's final feature block (CAM methods)
   eval_subset: 200        # number of validation images used for explanation evaluation
 
 faithfulness:

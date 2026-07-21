@@ -42,7 +42,8 @@ def test_gradcam_shape_and_range():
     assert sal.min() >= -1e-6 and sal.max() <= 1.0 + 1e-6
 
 
-def test_all_cam_methods():
+def test_all_explainers():
+    """All six explainers (4 CAM + IG + SHAP) return a normalized (N,H,W) map."""
     torch = pytest.importorskip("torch")
     from xai_bench.explainers import EXPLAINERS
     from xai_bench.models.backbones import target_layer_for
