@@ -24,6 +24,9 @@ Read `../PROJECT_MEMORY.md` for the full project memory and design decisions.
 - [x] Sweep runner: 3 backbones (DenseNet121, EfficientNet-B0, ConvNeXt-Tiny) x 6 methods = 18 configs.
       Trains each backbone ONCE per (fold, seed), reuses it for all 6 explainers, appends every row to
       `results/sweep_results.csv`. Checkpoint reuse -> resume-friendly.
+- [x] CV + CIs: `run_sweep.py --folds 0,1,2` (batch across Kaggle sessions), then
+      `scripts/aggregate_cis.py *.csv` -> mean +/- 95% CI per (backbone, method). Dedups re-runs.
+- [x] Repo guard: `scripts/check_repo.py` (all 6 explainers import + no untracked src/*.py).
 - [ ] Robustness (perturbation, sanity checks), agreement (IoU/Dice/SSIM/Spearman), efficiency (GPU mem).
 - [ ] Add robustness (perturbation, sanity checks), agreement (IoU/Dice/SSIM/Spearman), efficiency (GPU mem).
 - [ ] Add aggregation (normalize/Pareto/TOPSIS/Borda/sensitivity) and stats (Shapiro/ANOVA/Friedman/CIs).

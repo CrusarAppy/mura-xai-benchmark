@@ -27,9 +27,16 @@ from xai_bench.reporting import append_result                         # noqa: E4
 from xai_bench.pipeline import score_explainer                        # noqa: E402
 
 
+def _parse_int_list(s):
+    return [int(x) for x in str(s).replace(",", " ").split()]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
+    ap.add_argument("--folds", default=None,
+                    help="override sweep.folds, e.g. '0,1,2' (for splitting across Kaggle sessions)")
+    ap.add_argument("--seeds", default=None, help="override sweep.seeds, e.g. '42,7'")
     args = ap.parse_args()
 
     import torch
@@ -43,8 +50,8 @@ def main():
     img = int(d["image_size"])
     backbones = list(sw["backbones"])
     methods = list(sw["methods"])
-    folds = list(sw["folds"])
-    seeds = list(sw["seeds"])
+    folds = _parse_int_list(args.folds) if args.folds else list(sw["folds"])
+    seeds = _parse_int_list(args.seeds) if args.seeds else list(sw["seeds"])
     force_retrain = bool(sw.get("force_retrain", False))
 
     total = len(backbones) * len(methods) * len(folds) * len(seeds)

@@ -8,8 +8,8 @@ experiment:
 sweep:
   backbones: [densenet121, efficientnet_b0, convnext_tiny]
   methods:   [gradcam, gradcampp, scorecam, layercam, integrated_gradients, shap]
-  folds:  [0]        # add 1,2,3,4 for full 5-fold CV
-  seeds:  [42]       # add more seeds for reproducibility CIs
+  folds:  [0, 1, 2, 3, 4]   # full 5-fold CV -> 5 values per config for CIs
+  seeds:  [42]              # add more seeds (e.g. 7, 123) for extra variance
   force_retrain: false   # reuse existing checkpoints if present (resume-friendly)
 
 data:
