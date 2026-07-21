@@ -13,13 +13,18 @@ Read `../PROJECT_MEMORY.md` for the full project memory and design decisions.
 - Backbones: `src/xai_bench/models/backbones.py` (DenseNet121 done; EfficientNet-B0, ConvNeXt-Tiny stubbed-in).
 - Explainers: `src/xai_bench/explainers/` (Grad-CAM done).
 - Metrics: `src/xai_bench/evaluation/` (performance, calibration, faithfulness done).
-- Orchestration: `scripts/run_experiment.py`. Config: `configs/densenet_gradcam.yaml`.
+- Single run: `scripts/run_experiment.py`. Config: `configs/densenet_gradcam.yaml`.
+- Sweep (all 18 configs): `scripts/run_sweep.py`. Config: `configs/sweep.yaml`.
+  Shared step: `src/xai_bench/pipeline.py::score_explainer` (explanation + faithfulness + runtime).
 
 ## Phase status
 - [x] Phase 1: data + DenseNet121 + Grad-CAM + Deletion/Insertion + calibration + results log + tests.
-- [x] CAM family complete: Grad-CAM, Grad-CAM++, Score-CAM, LayerCAM (set `explain.method` in the config).
-- [ ] Add attribution methods: Integrated Gradients (Captum), SHAP.
-- [ ] Wire in the other two backbones (EfficientNet-B0, ConvNeXt-Tiny) via a config sweep.
+- [x] All six explainers complete: Grad-CAM, Grad-CAM++, Score-CAM, LayerCAM, Integrated Gradients,
+      SHAP (GradientSHAP). Set `explain.method` in the config. IG/SHAP are self-contained (pure autograd).
+- [x] Sweep runner: 3 backbones (DenseNet121, EfficientNet-B0, ConvNeXt-Tiny) x 6 methods = 18 configs.
+      Trains each backbone ONCE per (fold, seed), reuses it for all 6 explainers, appends every row to
+      `results/sweep_results.csv`. Checkpoint reuse -> resume-friendly.
+- [ ] Robustness (perturbation, sanity checks), agreement (IoU/Dice/SSIM/Spearman), efficiency (GPU mem).
 - [ ] Add robustness (perturbation, sanity checks), agreement (IoU/Dice/SSIM/Spearman), efficiency (GPU mem).
 - [ ] Add aggregation (normalize/Pareto/TOPSIS/Borda/sensitivity) and stats (Shapiro/ANOVA/Friedman/CIs).
 - [ ] Add Layer-7 benchmark validation checks and full reporting; run all 18 configs.

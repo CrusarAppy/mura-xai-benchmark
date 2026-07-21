@@ -1,0 +1,51 @@
+# Full benchmark sweep: all backbones x all XAI methods.
+# Each backbone is trained ONCE per (fold, seed) and reused for all 6 explainers.
+
+experiment:
+  name: mura_xai_sweep
+  seed: 42
+
+sweep:
+  backbones: [densenet121, efficientnet_b0, convnext_tiny]
+  methods:   [gradcam, gradcampp, scorecam, layercam, integrated_gradients, shap]
+  folds:  [0]        # add 1,2,3,4 for full 5-fold CV
+  seeds:  [42]       # add more seeds for reproducibility CIs
+  force_retrain: false   # reuse existing checkpoints if present (resume-friendly)
+
+data:
+  mura_root: /Users/aparbhandari/Downloads/explanable_ai_2/XAI_project/MURA-v1.1   # overwritten by the notebooks on Kaggle
+  image_size: 224
+  regions: [XR_WRIST]             # 'all' for the full dataset
+  val_from: official
+  n_folds: 5
+  num_workers: 2
+
+model:
+  pretrained: true
+  num_classes: 2
+
+train:
+  epochs: 30
+  batch_size: 32
+  lr: 0.0001
+  weight_decay: 0.0001
+  optimizer: adamw
+  scheduler: reduce_on_plateau
+  early_stopping_patience: 5
+  class_weighted_loss: true
+  amp: true
+  quick_debug: false   # full training. Set true for a fast pipeline smoke test.
+
+explain:
+  eval_subset: 150            # images used for explanation evaluation
+  eval_subset_scorecam: 40    # Score-CAM is ~1000x heavier -> use fewer images
+
+faithfulness:
+  steps: 100
+  baseline: blur
+  keep_threshold: 0.5
+
+output:
+  checkpoints_dir: checkpoints
+  results_csv: results/sweep_results.csv
+  maps_cache: maps_cache
