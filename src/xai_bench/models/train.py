@@ -51,7 +51,7 @@ def train_model(model, train_ds, val_ds, cfg: Dict, device, class_weight=None,
     weight = class_weight.to(device) if (class_weight is not None and t.get("class_weighted_loss")) else None
     criterion = nn.CrossEntropyLoss(weight=weight)
     use_amp = bool(t.get("amp")) and device.type == "cuda"
-    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
     best_val = float("inf"); patience = int(t.get("early_stopping_patience", 5)); bad = 0
     history = {"train_loss": [], "val_loss": []}
@@ -62,7 +62,7 @@ def train_model(model, train_ds, val_ds, cfg: Dict, device, class_weight=None,
         for x, y in train_loader:
             x, y = x.to(device), y.to(device)
             opt.zero_grad(set_to_none=True)
-            with torch.cuda.amp.autocast(enabled=use_amp):
+            with torch.amp.autocast("cuda", enabled=use_amp):
                 loss = criterion(model(x), y)
             scaler.scale(loss).backward(); scaler.step(opt); scaler.update()
             running += loss.item(); nb += 1

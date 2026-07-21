@@ -64,9 +64,15 @@ def main():
     print("Performance:", perf, "\nCalibration:", calib)
 
     # ---- Explanation subset ----
+    quick = bool(cfg["train"].get("quick_debug"))
     k = min(int(cfg["explain"]["eval_subset"]), len(val_ds))
+    steps = int(cfg["faithfulness"]["steps"])
+    if quick:                                  # keep the smoke test fast
+        k = min(k, 8)
+        steps = min(steps, 20)
+    exp_bs = min(int(cfg["train"]["batch_size"]), 8)   # smaller batch -> less peak memory
     sub = MuraDataset(va_df.iloc[:k].reset_index(drop=True), image_size=img, train=False)
-    sub_loader = torch.utils.data.DataLoader(sub, batch_size=int(cfg["train"]["batch_size"]), shuffle=False)
+    sub_loader = torch.utils.data.DataLoader(sub, batch_size=exp_bs, shuffle=False)
 
     cam = build_explainer(cfg["explain"]["method"], model, target_layer_for(model))
 
@@ -74,16 +80,24 @@ def main():
         with torch.no_grad():
             return torch.softmax(model(xb), dim=1)[:, 1].detach().cpu().numpy()
 
+    try:
+        from tqdm import tqdm
+    except Exception:
+        def tqdm(it, **kw):
+            return it
+
     fa = cfg["faithfulness"]
     del_ins = {"deletion_auc": [], "insertion_auc": []}
     adic = {"average_drop": [], "increase_in_confidence": []}
     runtimes = []
-    for xb, _ in sub_loader:
+    print(f"Generating {cfg['explain']['method']} explanations + faithfulness on {k} images "
+          f"(steps={steps}) ...")
+    for xb, _ in tqdm(sub_loader, desc="explain+faithfulness"):
         xb = xb.to(device)
         with Timer() as tm:
             sal = cam(xb, target_class=1)          # explain the 'abnormal' class
         runtimes.append(tm.seconds / xb.shape[0])
-        di = deletion_insertion(predict_prob, xb, sal, steps=int(fa["steps"]), baseline=fa["baseline"])
+        di = deletion_insertion(predict_prob, xb, sal, steps=steps, baseline=fa["baseline"])
         ad = average_drop_increase(predict_prob, xb, sal, threshold=float(fa["keep_threshold"]))
         for kk in del_ins: del_ins[kk].append(di[kk])
         for kk in adic: adic[kk].append(ad[kk])

@@ -3,20 +3,28 @@ from __future__ import annotations
 
 
 class ActivationGradientHook:
-    """Captures the forward activations and (optionally) backward gradients of a module."""
+    """Captures forward activations and (optionally) their gradients.
+
+    Uses a *tensor* gradient hook on the layer output rather than a module-level
+    ``register_full_backward_hook``. Module backward hooks break when the layer's
+    output is modified in place downstream (e.g. DenseNet's ``F.relu(..., inplace=True)``
+    right after ``features``); tensor hooks avoid that. Activations are cloned so the
+    stored values are the true pre-downstream-op feature maps.
+    """
 
     def __init__(self, target_layer, capture_grads: bool = True):
         self.acts = None
         self.grads = None
+        self.capture_grads = capture_grads
         self._h = [target_layer.register_forward_hook(self._fwd)]
-        if capture_grads:
-            self._h.append(target_layer.register_full_backward_hook(self._bwd))
 
     def _fwd(self, module, inp, out):
-        self.acts = out.detach()
+        self.acts = out.detach().clone()
+        if self.capture_grads and out.requires_grad:
+            out.register_hook(self._save_grad)
 
-    def _bwd(self, module, grad_in, grad_out):
-        self.grads = grad_out[0].detach()
+    def _save_grad(self, grad):
+        self.grads = grad.detach()
 
     def remove(self):
         for h in self._h:

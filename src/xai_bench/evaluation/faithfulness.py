@@ -12,6 +12,12 @@ from __future__ import annotations
 from typing import Callable, Dict
 import numpy as np
 
+# NumPy 2.0 renamed np.trapz -> np.trapezoid; support both.
+if hasattr(np, "trapezoid"):
+    _trapz = np.trapezoid
+else:  # NumPy < 2.0
+    _trapz = np.trapz
+
 
 def _blur_baseline(x):
     import torch
@@ -55,8 +61,8 @@ def deletion_insertion(predict_prob: Callable, x, sal, steps: int = 100,
             ins_curves[:, j] = predict_prob(ins_img.view(n, x.shape[1], H, W))
 
     xs = ks / total
-    del_auc = np.trapz(del_curves, xs, axis=1)
-    ins_auc = np.trapz(ins_curves, xs, axis=1)
+    del_auc = _trapz(del_curves, xs, axis=1)
+    ins_auc = _trapz(ins_curves, xs, axis=1)
     return {"deletion_auc": float(del_auc.mean()), "insertion_auc": float(ins_auc.mean())}
 
 

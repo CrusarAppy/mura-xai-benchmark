@@ -9,7 +9,7 @@ data:
   # >>> SET THIS: absolute path to the MURA-v1.1 folder (contains train_image_paths.csv etc.)
   mura_root: /Users/aparbhandari/Downloads/explanable_ai_2/XAI_project/MURA-v1.1
   image_size: 224
-  regions: all            # 'all' or a list, e.g. [XR_WRIST, XR_SHOULDER]
+  regions: [XR_WRIST]            # 'all' or a list, e.g. [XR_WRIST, XR_SHOULDER]
   val_from: official      # 'official' = use MURA valid split; folds are made on train
   n_folds: 5
   fold: 0                 # which CV fold to hold out for validation (0..n_folds-1)
@@ -30,7 +30,7 @@ train:
   early_stopping_patience: 5
   class_weighted_loss: true
   amp: true               # mixed precision
-  quick_debug: false      # true = 1 epoch, tiny subset (for pipeline testing)
+  quick_debug: true      # true = 1 epoch, tiny subset (for pipeline testing)
 
 explain:
   method: gradcam
