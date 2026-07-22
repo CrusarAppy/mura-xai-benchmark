@@ -27,7 +27,14 @@ Read `../PROJECT_MEMORY.md` for the full project memory and design decisions.
 - [x] CV + CIs: `run_sweep.py --folds 0,1,2` (batch across Kaggle sessions), then
       `scripts/aggregate_cis.py *.csv` -> mean +/- 95% CI per (backbone, method). Dedups re-runs.
 - [x] Repo guard: `scripts/check_repo.py` (all 6 explainers import + no untracked src/*.py).
-- [ ] Robustness (perturbation, sanity checks), agreement (IoU/Dice/SSIM/Spearman), efficiency (GPU mem).
+- [x] Phase A (proposal 3.9.1–3.9.5): AUPRC + Youden-J (`metrics.py`); reliability curve + temperature
+      scaling (`calibration.py`, wired into `run_sweep`); dual-baseline faithfulness (blur+mean) and
+      GPU-mem per explanation (`pipeline.py`); IG/SHAP baseline = blur (zero/blur/mean selectable) +
+      `baseline_sensitivity` diagnostic. New CSV columns: auprc, *_youden, threshold_youden,
+      ece_temp_scaled, temperature, deletion_auc_mean, insertion_auc_mean, gpu_mem_mb_per_explanation.
+- [ ] Phase B: robustness (perturbation, sanity checks) + agreement (IoU/Dice/SSIM/Spearman) — see IMPLEMENTATION_PLAN_v2.md.
+- [ ] Phase C: aggregation (Pareto/TOPSIS/Borda/weight-sensitivity) + stats (Friedman/Nemenyi/Nadeau–Bengio/CD diagram).
+- [ ] Phase D: per-anatomy sweep, H4 variance experiment, Docker/determinism, Layer-7 validation.
 - [ ] Add robustness (perturbation, sanity checks), agreement (IoU/Dice/SSIM/Spearman), efficiency (GPU mem).
 - [ ] Add aggregation (normalize/Pareto/TOPSIS/Borda/sensitivity) and stats (Shapiro/ANOVA/Friedman/CIs).
 - [ ] Add Layer-7 benchmark validation checks and full reporting; run all 18 configs.

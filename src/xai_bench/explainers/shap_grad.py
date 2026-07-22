@@ -16,16 +16,17 @@ from ._cam_utils import minmax_per_image, resolve_targets
 
 class GradientSHAP:
     def __init__(self, model, target_layer=None, n_samples: int = 32,
-                 stdev: float = 0.1, baseline: str = "zero"):
+                 stdev: float = 0.1, baseline: str = "blur"):
         self.model = model
         self.n_samples = int(n_samples)
         self.stdev = float(stdev)
-        self.baseline = baseline
+        self.baseline = baseline                         # blur|mean|zero (see faithfulness.make_baseline)
 
     def __call__(self, x, target_class=None):
         import torch
+        from ..evaluation.faithfulness import make_baseline
         self.model.eval()
-        base = torch.zeros_like(x)
+        base = make_baseline(x, self.baseline)
         n = x.shape[0]
         with torch.no_grad():
             tc = resolve_targets(self.model(x), target_class)

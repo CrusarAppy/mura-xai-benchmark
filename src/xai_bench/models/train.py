@@ -16,17 +16,27 @@ def _make_loader(dataset, batch_size, shuffle, num_workers, seed):
 
 def evaluate_logits(model, loader, device):
     """Return (probs[N,2], labels[N]) as numpy arrays."""
+    probs, logits, labels = collect_probs_logits(model, loader, device)
+    return probs, labels
+
+
+def collect_probs_logits(model, loader, device):
+    """Return (probs[N,2], logits[N,2], labels[N]) as numpy arrays.
+
+    Logits are needed for post-hoc temperature scaling (proposal 3.9.2).
+    """
     import numpy as np
     import torch
     model.eval()
-    probs, labels = [], []
+    probs, logits, labels = [], [], []
     with torch.no_grad():
         for x, y in loader:
             x = x.to(device)
-            logits = model(x)
-            p = torch.softmax(logits, dim=1).cpu().numpy()
-            probs.append(p); labels.append(y.numpy())
-    return np.concatenate(probs), np.concatenate(labels)
+            lo = model(x)
+            probs.append(torch.softmax(lo, dim=1).cpu().numpy())
+            logits.append(lo.cpu().numpy())
+            labels.append(y.numpy())
+    return np.concatenate(probs), np.concatenate(logits), np.concatenate(labels)
 
 
 def train_model(model, train_ds, val_ds, cfg: Dict, device, class_weight=None,

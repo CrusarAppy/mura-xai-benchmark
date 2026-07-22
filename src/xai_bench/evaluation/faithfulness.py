@@ -30,12 +30,29 @@ def _blur_baseline(x):
     return F.conv2d(F.pad(x, (k // 2,) * 4, mode="reflect"), kernel, groups=ch)
 
 
+def make_baseline(x, kind: str = "blur"):
+    """Construct a perturbation baseline for x (N,C,H,W).
+
+    - blur: Gaussian-blurred input (removes high-frequency evidence but keeps low-freq layout)
+    - mean: each image replaced by its per-channel spatial mean (a flat, information-free image)
+    - zero: all zeros (in ImageNet-normalised space this is ~the dataset mean image)
+    """
+    import torch
+    if kind == "blur":
+        return _blur_baseline(x)
+    if kind == "mean":
+        return x.mean(dim=(2, 3), keepdim=True).expand_as(x).clone()
+    if kind == "zero":
+        return torch.zeros_like(x)
+    raise ValueError(f"unknown baseline {kind!r} (use blur|mean|zero)")
+
+
 def deletion_insertion(predict_prob: Callable, x, sal, steps: int = 100,
                        baseline: str = "blur") -> Dict[str, float]:
-    """Return mean Deletion and Insertion AUC over the batch."""
+    """Return mean Deletion and Insertion AUC over the batch under the given baseline."""
     import torch
     n, _, H, W = x.shape
-    base = _blur_baseline(x) if baseline == "blur" else torch.zeros_like(x)
+    base = make_baseline(x, baseline)
     sal_t = torch.as_tensor(sal, dtype=torch.float32, device=x.device).view(n, -1)
     order = torch.argsort(sal_t, dim=1, descending=True)   # most important first
     total = H * W

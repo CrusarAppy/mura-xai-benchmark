@@ -36,6 +36,22 @@ def check_explainers() -> list[str]:
     return problems
 
 
+def check_evaluation_api() -> list[str]:
+    """Assert the evaluation package exposes the Phase-A API from a clean checkout."""
+    expected = ["classification_metrics", "calibration_metrics", "youden_threshold",
+                "reliability_curve", "temperature_scale", "deletion_insertion",
+                "average_drop_increase", "make_baseline", "baseline_sensitivity"]
+    problems = []
+    try:
+        import xai_bench.evaluation as ev
+        for name in expected:
+            if not hasattr(ev, name):
+                problems.append(f"evaluation API missing: {name}")
+    except Exception as e:
+        problems.append(f"evaluation package failed to import: {e}")
+    return problems
+
+
 def check_untracked_python() -> list[str]:
     """Warn if any tracked-looking .py under src/ is untracked in git — the exact
     failure mode that broke the Kaggle run (files on disk but not committed)."""
@@ -51,7 +67,7 @@ def check_untracked_python() -> list[str]:
 
 
 def main() -> int:
-    problems = check_explainers() + check_untracked_python()
+    problems = check_explainers() + check_evaluation_api() + check_untracked_python()
     # separate hard failures from informational skips
     hard = [p for p in problems if not p.startswith("(skipped")]
     if hard:

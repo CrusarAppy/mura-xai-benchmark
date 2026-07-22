@@ -4,12 +4,33 @@ from typing import Dict
 import numpy as np
 
 
+def youden_threshold(labels: np.ndarray, scores: np.ndarray) -> float:
+    """Decision threshold maximising Youden's J = sensitivity + specificity - 1
+    (equivalently argmax(TPR - FPR) on the ROC curve). Returns 0.5 if undefined."""
+    from sklearn.metrics import roc_curve
+    try:
+        fpr, tpr, thr = roc_curve(labels, scores)
+    except ValueError:
+        return 0.5
+    j = tpr - fpr
+    t = thr[int(np.argmax(j))]
+    # roc_curve can emit an inf at the first point; clamp to a valid probability
+    if not np.isfinite(t):
+        return 0.5
+    return float(min(max(t, 0.0), 1.0))
+
+
 def classification_metrics(probs: np.ndarray, labels: np.ndarray) -> Dict[str, float]:
-    """probs: (N,2) softmax outputs, labels: (N,). Positive class = 1 (abnormal)."""
+    """probs: (N,2) softmax outputs, labels: (N,). Positive class = 1 (abnormal).
+
+    Reports threshold-free discrimination (AUROC, AUPRC) plus threshold-dependent
+    metrics at BOTH the default 0.5 and the Youden-J optimum (suffix `_youden`),
+    per proposal Section 3.9.1.
+    """
     from sklearn.metrics import (accuracy_score, precision_score, recall_score,
-                                 f1_score, roc_auc_score)
-    preds = probs.argmax(axis=1)
+                                 f1_score, roc_auc_score, average_precision_score)
     p1 = probs[:, 1]
+    preds = (p1 >= 0.5).astype(int)
     out = {
         "accuracy": float(accuracy_score(labels, preds)),
         "precision": float(precision_score(labels, preds, zero_division=0)),
@@ -20,6 +41,18 @@ def classification_metrics(probs: np.ndarray, labels: np.ndarray) -> Dict[str, f
         out["auroc"] = float(roc_auc_score(labels, p1))
     except ValueError:
         out["auroc"] = float("nan")   # single-class batch
+    try:
+        out["auprc"] = float(average_precision_score(labels, p1))
+    except ValueError:
+        out["auprc"] = float("nan")
+
+    # Youden-J operating point
+    thr = youden_threshold(labels, p1)
+    preds_y = (p1 >= thr).astype(int)
+    out["threshold_youden"] = float(thr)
+    out["precision_youden"] = float(precision_score(labels, preds_y, zero_division=0))
+    out["recall_youden"] = float(recall_score(labels, preds_y, zero_division=0))
+    out["f1_youden"] = float(f1_score(labels, preds_y, zero_division=0))
     return out
 
 

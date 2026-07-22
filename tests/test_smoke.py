@@ -86,6 +86,50 @@ def test_metrics():
     assert 0.0 <= calib["ece"] <= 1.0 and calib["brier"] >= 0.0
 
 
+def test_phaseA_classification_extras():
+    """A1: AUPRC, Youden-J threshold, and *_youden metrics present and in range."""
+    from xai_bench.evaluation import classification_metrics, youden_threshold
+    rng = np.random.default_rng(0)
+    labels = np.array([0] * 30 + [1] * 10)          # imbalanced, like MURA
+    p1 = np.clip(0.3 + 0.4 * labels + rng.normal(0, 0.15, 40), 0, 1)
+    probs = np.stack([1 - p1, p1], axis=1)
+    m = classification_metrics(probs, labels)
+    for key in ("auprc", "threshold_youden", "precision_youden", "recall_youden", "f1_youden"):
+        assert key in m, key
+    assert 0.0 <= m["auprc"] <= 1.0
+    assert 0.0 <= m["threshold_youden"] <= 1.0
+    assert youden_threshold(labels, p1) == m["threshold_youden"]
+
+
+def test_phaseA_temperature_scaling():
+    """A2: temperature scaling returns T>0 and does not worsen ECE on overconfident logits."""
+    from xai_bench.evaluation import temperature_scale, reliability_curve
+    rng = np.random.default_rng(1)
+    labels = rng.integers(0, 2, 200)
+    # deliberately overconfident logits (large magnitude) -> T>1 should help
+    z1 = 4.0 * (2 * labels - 1) + rng.normal(0, 2.0, 200)
+    logits = np.stack([-z1, z1], axis=1)
+    out = temperature_scale(logits, labels)
+    assert out["temperature"] > 0
+    assert out["ece_after"] <= out["ece_before"] + 1e-6
+    probs = np.stack([1 / (1 + np.exp(z1)), 1 / (1 + np.exp(-z1))], axis=1)
+    curve = reliability_curve(probs, labels, n_bins=10)
+    assert len(curve) == 10 and sum(r["count"] for r in curve) == 200
+
+
+def test_phaseA_baselines_differ():
+    """A3/A4: make_baseline produces distinct blur/mean/zero tensors."""
+    torch = pytest.importorskip("torch")
+    from xai_bench.evaluation import make_baseline
+    x = torch.randn(2, 3, 16, 16)
+    b = make_baseline(x, "blur"); m = make_baseline(x, "mean"); z = make_baseline(x, "zero")
+    assert b.shape == x.shape == m.shape == z.shape
+    assert float(z.abs().sum()) == 0.0
+    assert not torch.allclose(b, m)
+    # mean baseline is spatially constant per channel
+    assert torch.allclose(m[:, :, 0, 0], m[:, :, -1, -1])
+
+
 def test_patient_level_split_no_leakage():
     import pandas as pd
     from xai_bench.data.mura import make_folds

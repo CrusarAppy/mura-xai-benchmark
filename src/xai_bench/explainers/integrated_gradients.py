@@ -11,15 +11,16 @@ from ._cam_utils import minmax_per_image, resolve_targets
 
 
 class IntegratedGradients:
-    def __init__(self, model, target_layer=None, n_steps: int = 32, baseline: str = "zero"):
+    def __init__(self, model, target_layer=None, n_steps: int = 32, baseline: str = "blur"):
         self.model = model
         self.n_steps = int(n_steps)
-        self.baseline = baseline
+        self.baseline = baseline                         # blur|mean|zero (see faithfulness.make_baseline)
 
     def __call__(self, x, target_class=None):
         import torch
+        from ..evaluation.faithfulness import make_baseline
         self.model.eval()
-        base = torch.zeros_like(x)                       # black baseline
+        base = make_baseline(x, self.baseline)           # blur baseline by default (zero is poor for radiographs)
         with torch.no_grad():
             tc = resolve_targets(self.model(x), target_class)
 

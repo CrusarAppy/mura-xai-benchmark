@@ -21,8 +21,9 @@ sys.path.insert(0, str(ROOT / "src"))
 from xai_bench.utils import load_config, get_device                    # noqa: E402
 from xai_bench.seeds import set_seed                                   # noqa: E402
 from xai_bench.data import (build_mura_index, make_folds, MuraDataset, class_weights)  # noqa: E402
-from xai_bench.models import build_backbone, train_model, evaluate_logits  # noqa: E402
-from xai_bench.evaluation import classification_metrics, calibration_metrics  # noqa: E402
+from xai_bench.models import build_backbone, train_model, collect_probs_logits  # noqa: E402
+from xai_bench.evaluation import (classification_metrics, calibration_metrics,  # noqa: E402
+                                  temperature_scale)
 from xai_bench.reporting import append_result                         # noqa: E402
 from xai_bench.pipeline import score_explainer                        # noqa: E402
 
@@ -103,11 +104,15 @@ def main():
                     MuraDataset(metrics_df.reset_index(drop=True), image_size=img, train=False),
                     batch_size=int(cfg["train"]["batch_size"]), shuffle=False,
                 )
-                probs, labels = evaluate_logits(model, val_loader, device)
+                probs, logits, labels = collect_probs_logits(model, val_loader, device)
                 perf = classification_metrics(probs, labels)
                 calib = calibration_metrics(probs, labels)
+                temp = temperature_scale(logits, labels)   # post-hoc temperature scaling (3.9.2)
+                calib["ece_temp_scaled"] = temp["ece_after"]
+                calib["temperature"] = temp["temperature"]
                 print(f"    {backbone}: AUROC={perf.get('auroc', float('nan')):.3f} "
-                      f"ECE={calib.get('ece', float('nan')):.3f}")
+                      f"AUPRC={perf.get('auprc', float('nan')):.3f} "
+                      f"ECE={calib.get('ece', float('nan')):.3f}->{temp['ece_after']:.3f} (T={temp['temperature']:.2f})")
 
                 for method in methods:
                     done += 1
