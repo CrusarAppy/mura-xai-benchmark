@@ -40,7 +40,9 @@ def check_evaluation_api() -> list[str]:
     """Assert the evaluation package exposes the Phase-A API from a clean checkout."""
     expected = ["classification_metrics", "calibration_metrics", "youden_threshold",
                 "reliability_curve", "temperature_scale", "deletion_insertion",
-                "average_drop_increase", "make_baseline", "baseline_sensitivity"]
+                "average_drop_increase", "make_baseline", "baseline_sensitivity",
+                "binarise_topk", "iou", "dice", "ssim_map", "spearman_map",
+                "pairwise_agreement", "input_robustness", "sanity_check"]
     problems = []
     try:
         import xai_bench.evaluation as ev
@@ -49,6 +51,19 @@ def check_evaluation_api() -> list[str]:
                 problems.append(f"evaluation API missing: {name}")
     except Exception as e:
         problems.append(f"evaluation package failed to import: {e}")
+    # analysis package (Phase C)
+    analysis_api = ["normalize", "pareto_front", "topsis", "weighted_sum", "borda",
+                    "rank_methods", "weight_sensitivity", "friedman_test",
+                    "nemenyi_posthoc", "corrected_resampled_ttest", "bootstrap_ci",
+                    "critical_difference_diagram", "variance_ratio_test",
+                    "validate_benchmark", "construct_validity", "stability"]
+    try:
+        import xai_bench.analysis as an
+        for name in analysis_api:
+            if not hasattr(an, name):
+                problems.append(f"analysis API missing: {name}")
+    except Exception as e:
+        problems.append(f"analysis package failed to import: {e}")
     return problems
 
 

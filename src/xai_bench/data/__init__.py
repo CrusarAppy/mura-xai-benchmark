@@ -4,6 +4,8 @@ from .mura import (
     MuraDataset,
     build_transforms,
     class_weights,
+    expand_regions,
+    MURA_REGIONS,
 )
 
 __all__ = [
@@ -12,4 +14,6 @@ __all__ = [
     "MuraDataset",
     "build_transforms",
     "class_weights",
+    "expand_regions",
+    "MURA_REGIONS",
 ]

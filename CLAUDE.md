@@ -32,9 +32,22 @@ Read `../PROJECT_MEMORY.md` for the full project memory and design decisions.
       GPU-mem per explanation (`pipeline.py`); IG/SHAP baseline = blur (zero/blur/mean selectable) +
       `baseline_sensitivity` diagnostic. New CSV columns: auprc, *_youden, threshold_youden,
       ece_temp_scaled, temperature, deletion_auc_mean, insertion_auc_mean, gpu_mem_mb_per_explanation.
-- [ ] Phase B: robustness (perturbation, sanity checks) + agreement (IoU/Dice/SSIM/Spearman) — see IMPLEMENTATION_PLAN_v2.md.
-- [ ] Phase C: aggregation (Pareto/TOPSIS/Borda/weight-sensitivity) + stats (Friedman/Nemenyi/Nadeau–Bengio/CD diagram).
-- [ ] Phase D: per-anatomy sweep, H4 variance experiment, Docker/determinism, Layer-7 validation.
+- [x] Phase B (proposal 3.9.4, 3.9.7): agreement (`agreement.py`: top-k% energy binarise + IoU/Dice/SSIM/
+      Spearman, method×method & arch×arch via `scripts/run_agreement.py`); robustness + sanity checks
+      (`robustness.py`: noise/brightness-contrast stability + cascading/independent randomisation via
+      `scripts/run_robustness.py`). Drivers reuse sweep checkpoints; outputs results/agreement.csv,
+      robustness.csv, sanity.csv. Run AFTER a full sweep (needs checkpoints).
+- [x] Phase C (proposal 3.8.1, 3.10): aggregation (`analysis/aggregation.py`: direction-aware min-max,
+      Pareto, TOPSIS, weighted-sum, Borda, Kendall's tau, weight sensitivity → `scripts/run_aggregation.py`);
+      statistics (`analysis/stats.py`: Shapiro, Friedman+Kendall's W, Nemenyi+critical-difference diagram,
+      Wilcoxon+Holm, Nadeau–Bengio corrected-resampled t, bootstrap CIs → `scripts/run_stats.py`).
+      Pure post-processing on results CSVs — no GPU. Verified end-to-end on synthetic data.
+- [x] Phase D: per-anatomy sweep (region loop + region-tagged rows/checkpoints; `--regions` override;
+      agreement/robustness drivers take `--region`); H4 variance experiment (`scripts/run_reproducibility.py`
+      + `analysis/stats.variance_ratio_test`, Levene/Bartlett + bootstrap CI); reproducibility infra
+      (`seeds.full_determinism`, `reporting/env_capture.py` stamped on every row, Dockerfile, requirements.lock);
+      Layer-7 validation (`analysis/validation.py`: internal/construct/stability → `scripts/run_validation.py`
+      → results/validation_report.json). All A–D phases complete; framework now matches the proposal.
 - [ ] Add robustness (perturbation, sanity checks), agreement (IoU/Dice/SSIM/Spearman), efficiency (GPU mem).
 - [ ] Add aggregation (normalize/Pareto/TOPSIS/Borda/sensitivity) and stats (Shapiro/ANOVA/Friedman/CIs).
 - [ ] Add Layer-7 benchmark validation checks and full reporting; run all 18 configs.

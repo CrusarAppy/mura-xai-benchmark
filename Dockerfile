@@ -1,15 +1,20 @@
-# Reproducible environment for the XAI benchmark.
-FROM python:3.11-slim
+# Reproducible environment for the XAI-MURA benchmark (proposal 3.10.6 / 4.2).
+# CUDA 12.1 + PyTorch base so training and explanation run on GPU identically to Kaggle/Colab.
+FROM pytorch/pytorch:2.3.1-cuda12.1-cudnn8-runtime
 
-ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
-WORKDIR /app
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONHASHSEED=0 \
+    CUBLAS_WORKSPACE_CONFIG=:4096:8
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+WORKDIR /workspace
 
-COPY requirements.txt pyproject.toml ./
-COPY src ./src
-RUN pip install --upgrade pip && pip install -e .
+# Pinned scientific stack (torch/torchvision come from the base image).
+COPY requirements.lock /tmp/requirements.lock
+RUN pip install --no-cache-dir -r /tmp/requirements.lock
 
-COPY . .
-CMD ["python", "scripts/run_experiment.py", "--config", "configs/densenet_gradcam.yaml"]
+# Install the benchmark package.
+COPY . /workspace
+RUN pip install --no-cache-dir -e .
+
+# Default: run the smoke tests to verify the image.
+CMD ["python", "-m", "pytest", "-q", "tests/"]

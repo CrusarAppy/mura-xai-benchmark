@@ -130,6 +130,141 @@ def test_phaseA_baselines_differ():
     assert torch.allclose(m[:, :, 0, 0], m[:, :, -1, -1])
 
 
+def test_phaseB_agreement_identities():
+    """B1: self-agreement is perfect; disjoint maps have zero overlap; energy threshold works."""
+    from xai_bench.evaluation import (binarise_topk, iou, dice, agreement_pair,
+                                      pairwise_agreement)
+    a = np.zeros((8, 8), dtype="float32"); a[:2, :2] = 1.0     # 4 hot pixels
+    m = binarise_topk(a, k_percent=20.0)
+    assert m.sum() >= 1 and m[0, 0] == 1.0
+    assert iou(m, m) == 1.0 and dice(m, m) == 1.0
+    b = np.zeros((8, 8), dtype="float32"); b[-2:, -2:] = 1.0   # disjoint hot region
+    r = agreement_pair(a, b, k_percent=20.0)
+    assert r["iou"] == 0.0 and r["dice"] == 0.0
+    maps = {"m1": a[None], "m2": a[None]}                       # identical stacks
+    rows = pairwise_agreement(maps, k_percent=20.0)
+    assert len(rows) == 1 and rows[0]["iou_mean"] == 1.0
+
+
+def test_phaseB_binarise_energy_fraction():
+    """B1: energy threshold retains ~k% of the saliency MASS, not k% of pixels."""
+    from xai_bench.evaluation import binarise_topk
+    sal = np.zeros((10, 10), dtype="float32")
+    sal[0, 0] = 9.0                      # one pixel holds 90% of the mass
+    sal[1:, :] = 0.0
+    sal[0, 1] = 1.0                      # total mass = 10
+    mask = binarise_topk(sal, k_percent=50.0)   # 50% of mass -> just the 9.0 pixel
+    assert mask[0, 0] == 1.0 and mask.sum() == 1.0
+
+
+def test_phaseB_robustness_perturbations():
+    """B2: perturbations preserve shape and actually change the image."""
+    torch = pytest.importorskip("torch")
+    from xai_bench.evaluation import add_gaussian_noise, adjust_brightness_contrast
+    x = torch.randn(2, 3, 16, 16)
+    xn = add_gaussian_noise(x, 0.1); xb = adjust_brightness_contrast(x, 0.2)
+    assert xn.shape == x.shape and xb.shape == x.shape
+    assert not torch.allclose(xn, x) and not torch.allclose(xb, x)
+
+
+def test_phaseC_aggregation():
+    """C1: TOPSIS/weighted-sum/Borda agree that the dominant alternative wins; Pareto+tau."""
+    import pandas as pd
+    from xai_bench.analysis import (rank_methods, topsis, pareto_front, weight_sensitivity,
+                                    normalize)
+    # method A dominates on every criterion (higher del is *worse*; lower is better)
+    df = pd.DataFrame({
+        "xai_method": ["A", "B", "C"],
+        "insertion_auc": [0.9, 0.6, 0.5],          # higher better
+        "deletion_auc": [0.1, 0.4, 0.5],           # lower better
+        "runtime_s_per_explanation": [0.1, 1.0, 2.0],  # lower better
+    })
+    cols = ["insertion_auc", "deletion_auc", "runtime_s_per_explanation"]
+    nrm = normalize(df, cols)
+    assert (nrm.loc[0] >= nrm.loc[1]).all()        # A normalises to the best on all
+    ranking = rank_methods(df, cols, id_col="xai_method")
+    assert ranking.iloc[0]["xai_method"] == "A"
+    assert bool(ranking.iloc[0]["pareto_optimal"]) is True
+    # dominated C should not be Pareto-optimal
+    pf = pareto_front(df, cols)
+    assert pf[0] and not pf[2]
+    tau = ranking.attrs["kendall_tau"]
+    assert abs(tau.loc["topsis", "topsis"] - 1.0) < 1e-9
+    sens = weight_sensitivity(df, cols, {"equal": [1, 1, 1], "eff": [1, 1, 3]},
+                              id_col="xai_method")
+    assert sens.iloc[0]["xai_method"] == "A"       # A is robust to weighting
+
+
+def test_phaseC_statistics():
+    """C2: Friedman detects a planted method effect; Nadeau-Bengio inflates variance."""
+    import numpy as np, pandas as pd
+    from xai_bench.analysis import (friedman_test, nemenyi_posthoc, corrected_resampled_ttest,
+                                    bootstrap_ci)
+    rng = np.random.default_rng(0)
+    rows = []
+    # method C is consistently better (higher insertion) across all blocks
+    for region in ["wrist", "elbow", "hand", "shoulder"]:
+        for fold in range(3):
+            for bb in ["densenet121", "efficientnet_b0"]:
+                base = {"densenet121": 0.5, "efficientnet_b0": 0.55}[bb]
+                for m, bump in [("A", 0.0), ("B", 0.02), ("C", 0.15)]:
+                    rows.append({"xai_method": m, "backbone": bb, "region": region,
+                                 "fold": fold,
+                                 "insertion_auc": base + bump + rng.normal(0, 0.01)})
+    df = pd.DataFrame(rows)
+    fr = friedman_test(df, "insertion_auc")
+    assert fr["p"] < 0.05 and fr["k"] == 3
+    nem = nemenyi_posthoc(df, "insertion_auc", higher_better=True)
+    assert nem["mean_ranks"]["C"] < nem["mean_ranks"]["A"]   # lower rank = better
+    # Nadeau-Bengio: corrected SE must exceed naive SE
+    diffs = [0.05, 0.04, 0.06, 0.03, 0.05]
+    nb = corrected_resampled_ttest(diffs, n_test=200, n_train=800)
+    naive_se = np.std(diffs, ddof=1) / np.sqrt(len(diffs))
+    assert nb["se_corrected"] > naive_se
+    ci = bootstrap_ci([0.1, 0.2, 0.15, 0.18, 0.12], seed=1)
+    assert ci["lo"] <= ci["mean"] <= ci["hi"]
+
+
+def test_phaseD_variance_ratio_h4():
+    """D2/H4: uncontrolled protocol has larger variance -> ratio>1, Levene detects it."""
+    import numpy as np
+    from xai_bench.analysis import variance_ratio_test
+    rng = np.random.default_rng(0)
+    controlled = 0.5 + rng.normal(0, 0.01, 20)     # tight (standardised)
+    uncontrolled = 0.5 + rng.normal(0, 0.08, 20)   # loose (nuisance factors vary)
+    res = variance_ratio_test(controlled, uncontrolled, n_boot=2000)
+    assert res["var_uncontrolled"] > res["var_controlled"]
+    assert res["variance_ratio"] > 1.0
+    assert res["levene_p"] < 0.05
+    assert res["variance_ratio_ci_lo"] > 0
+
+
+def test_phaseD_benchmark_validation():
+    """D4: internal validity, construct redundancy, and stability report shape."""
+    import numpy as np, pandas as pd
+    from xai_bench.analysis import validate_benchmark, construct_validity, internal_validity
+    rng = np.random.default_rng(1)
+    rows = []
+    for region in ["wrist", "elbow"]:
+        for bb in ["densenet121", "efficientnet_b0"]:
+            for m in ["gradcam", "shap"]:
+                for fold in range(3):
+                    base = 0.9 - 0.05 * (m == "shap")
+                    rows.append({"region": region, "backbone": bb, "xai_method": m,
+                                 "fold": fold, "env_torch": "2.3.1", "env_python": "3.11.0",
+                                 "auroc": base + rng.normal(0, 0.005),
+                                 "auprc": base + rng.normal(0, 0.005),      # ~collinear with auroc
+                                 "deletion_auc": 0.3 + rng.normal(0, 0.02),
+                                 "runtime_s_per_explanation": 0.1 + rng.normal(0, 0.001)})
+    df = pd.DataFrame(rows)
+    rep = validate_benchmark(df, ["auroc", "auprc", "deletion_auc", "runtime_s_per_explanation"])
+    assert rep["internal_validity"]["overall_consistent"] is True    # single env stamp
+    # auroc & auprc are near-collinear here -> flagged redundant
+    pairs = {(p["a"], p["b"]) for p in rep["construct_validity"]["redundant_pairs"]}
+    assert ("auroc", "auprc") in pairs
+    assert "auroc" in rep["stability"] and "icc1" in rep["stability"]["auroc"]
+
+
 def test_patient_level_split_no_leakage():
     import pandas as pd
     from xai_bench.data.mura import make_folds

@@ -38,6 +38,18 @@ def _resolve(mura_root: Path, csv_relpath: str) -> Optional[Path]:
     return None
 
 
+MURA_REGIONS = ["XR_ELBOW", "XR_FINGER", "XR_FOREARM", "XR_HAND",
+                "XR_HUMERUS", "XR_SHOULDER", "XR_WRIST"]
+
+
+def expand_regions(regions) -> list:
+    """Normalise a config `regions` value to an explicit list for per-anatomy iteration.
+    'all' -> the seven MURA regions; a list is returned as-is."""
+    if regions == "all" or regions is None:
+        return list(MURA_REGIONS)
+    return list(regions)
+
+
 def build_mura_index(mura_root: str | Path, split: str = "train",
                      regions="all", verify_n: int = 25) -> pd.DataFrame:
     """Return a DataFrame with columns: filepath, label, patient, study, region, split.

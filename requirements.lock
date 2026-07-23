@@ -1,0 +1,13 @@
+# Pinned dependencies for reproducibility (proposal 3.10.6 / 4.2).
+# torch / torchvision are provided by the Docker base image (pytorch 2.3.1, cu121);
+# when installing outside Docker, add a matching torch build for your platform.
+numpy==1.26.4
+scipy==1.13.1
+pandas==2.2.2
+scikit-learn==1.5.1
+scikit-image==0.24.0
+matplotlib==3.9.1
+statsmodels==0.14.2
+tqdm==4.66.4
+PyYAML==6.0.1
+pytest==8.2.2
